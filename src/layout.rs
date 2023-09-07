@@ -8,6 +8,7 @@ const CISO_MAGIC: u32 = 0x4F534943;
 
 #[repr(C)]
 #[repr(packed)]
+#[derive(Debug, Clone, Copy)]
 pub struct CSOHeader {
     pub magic: u32,
     pub header_size: u32,
