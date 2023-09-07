@@ -24,3 +24,11 @@ The `ciso::read::CSOReader` struct can be used to read from compressed data.
 
 The `ciso::split` module has wrappers for handling split files for both reading and writing. For a reference of how
 to use them, see the provided binaries.
+
+### Features
+
+The `tokio` feature is used for the binaries and can be safely disabled. If you
+use the library, you should use `default-features = false`.
+
+The `sync` feature removes the async qualifier on all functions and traits.
+If you need to use the library without async, you can use this feature.
