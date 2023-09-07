@@ -70,13 +70,13 @@ impl<E, R: Read<E>> CSOReader<E, R> {
     #[maybe_async(?Send)]
     pub async fn read_offset(&mut self, pos: u64, buf: &mut [u8]) -> Result<(), layout::Error<E>> {
         let mut sector = pos / (self.header.block_size as u64);
-        let mut position = pos % (self.header.block_size as u64);
+        let position = pos % (self.header.block_size as u64);
+        let mut position = position as usize;
 
         let mut len_remaining = buf.len();
         let mut buf_pos = 0;
 
         while len_remaining > 0 {
-            assert_eq!(position, 0); // FIXME
             let index_entry = self.index_table[sector as usize];
             let sector_pos = index_entry.position();
             let data_len = self.index_table[(sector + 1) as usize].position() - sector_pos;
@@ -106,7 +106,8 @@ impl<E, R: Read<E>> CSOReader<E, R> {
                 assert_eq!(read, 2048);
 
                 let to_read = core::cmp::min(len_remaining, data.len());
-                buf[buf_pos..(buf_pos + to_read)].copy_from_slice(&data[0..to_read]);
+                let data = &data[position..(position + to_read)];
+                buf[buf_pos..(buf_pos + to_read)].copy_from_slice(data);
                 buf_pos += to_read;
                 len_remaining -= to_read;
             }
