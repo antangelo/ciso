@@ -1,8 +1,16 @@
 [package]
 name = "ciso"
+description = "Library for CISO image compression and decompression"
+keywords = ["ciso", "compression"]
+readme = "README.md"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+
+repository = "https://github.com/antangelo/ciso"
+homepage = "https://github.com/antangelo/ciso"
+
+exclude = ["**/*.iso", "**/*.cso", "**/*.ciso"]
 
 [lib]
 
