@@ -156,7 +156,7 @@ impl<E, R: crate::read::Read<E>> crate::read::Read<E> for SplitFileReader<E, R> 
             let handle_offset = pos - handle.0;
             let handle: &mut R = handle.1;
 
-            let (pos, to_read) = if handle_size <= handle_offset {
+            let (pos, to_read) = if handle_size > handle_offset {
                 let bytes_to_split = handle_size - handle_offset;
                 (
                     pos,
