@@ -9,13 +9,13 @@ use crate::write::AsyncWriter;
 
 const FILE_SPLIT_POINT: u64 = 0xffbf6000;
 
-#[maybe_async(?Send)]
-pub trait SplitFilesystem<E, H: AsyncWriter<E>> {
+#[maybe_async]
+pub trait SplitFilesystem<E, H: AsyncWriter<E>>: Send + Sync {
     async fn create_file(&mut self, name: &OsStr) -> Result<H, E>;
     async fn close(&mut self, file: H);
 }
 
-pub struct SplitOutput<E, H: AsyncWriter<E>, S: SplitFilesystem<E, H>> {
+pub struct SplitOutput<E: Send + Sync, H: AsyncWriter<E>, S: SplitFilesystem<E, H>> {
     fs: S,
     file_name: std::path::PathBuf,
     splits: std::collections::BTreeMap<u64, H>,
@@ -27,6 +27,7 @@ impl<E, H, S> SplitOutput<E, H, S>
 where
     H: AsyncWriter<E>,
     S: SplitFilesystem<E, H>,
+    E: Send + Sync,
 {
     pub fn new(fs: S, file_name: std::path::PathBuf) -> Self {
         Self {
@@ -45,7 +46,7 @@ where
             .to_os_string()
     }
 
-    #[maybe_async(?Send)]
+    #[maybe_async]
     async fn handle_for_position(&mut self, position: u64) -> Result<&mut H, E> {
         let index = position / FILE_SPLIT_POINT;
 
@@ -59,7 +60,7 @@ where
         Ok(self.splits.get_mut(&index).unwrap())
     }
 
-    #[maybe_async(?Send)]
+    #[maybe_async]
     pub async fn close(mut self) {
         for (_, writer) in self.splits.into_iter() {
             self.fs.close(writer).await;
@@ -67,11 +68,12 @@ where
     }
 }
 
-#[maybe_async(?Send)]
+#[maybe_async]
 impl<E, H, S> AsyncWriter<E> for SplitOutput<E, H, S>
 where
     H: AsyncWriter<E>,
     S: SplitFilesystem<E, H>,
+    E: Send + Sync,
 {
     async fn atomic_write(&mut self, position: u64, data: &[u8]) -> Result<(), E> {
         let mut written = 0;
@@ -126,8 +128,8 @@ impl<E, R: crate::read::Read<E>> SplitFileReader<E, R> {
     }
 }
 
-#[maybe_async(?Send)]
-impl<E, R: crate::read::Read<E>> crate::read::Read<E> for SplitFileReader<E, R> {
+#[maybe_async]
+impl<E: Send + Sync, R: crate::read::Read<E>> crate::read::Read<E> for SplitFileReader<E, R> {
     async fn size(&mut self) -> Result<u64, E> {
         Ok(match self.files.last_entry() {
             Some(mut entry) => *entry.key() + entry.get_mut().size().await?,

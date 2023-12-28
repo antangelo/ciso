@@ -2,7 +2,7 @@ use maybe_async::maybe_async;
 use std::io::Write;
 
 #[cfg_attr(not(feature = "sync"), tokio::main)]
-#[maybe_async(?Send)]
+#[maybe_async]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
     let file = std::path::PathBuf::from(&args[1]);

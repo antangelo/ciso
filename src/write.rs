@@ -39,7 +39,7 @@ pub enum ProgressInfo {
     Finished,
 }
 
-#[maybe_async(?Send)]
+#[maybe_async]
 async fn write_ciso_data<E, I: SectorReader<E>, O: AsyncWriter<E>>(
     input: &mut I,
     output: &mut O,
@@ -108,7 +108,7 @@ async fn write_ciso_data<E, I: SectorReader<E>, O: AsyncWriter<E>>(
     Ok(())
 }
 
-#[maybe_async(?Send)]
+#[maybe_async]
 pub async fn write_ciso_image<E, I: SectorReader<E>, O: AsyncWriter<E>>(
     input: &mut I,
     output: &mut O,
@@ -141,15 +141,15 @@ pub async fn write_ciso_image<E, I: SectorReader<E>, O: AsyncWriter<E>>(
     Ok(())
 }
 
-#[maybe_async(?Send)]
-pub trait AsyncWriter<E> {
+#[maybe_async]
+pub trait AsyncWriter<E>: Send + Sync {
     async fn atomic_write(&mut self, position: u64, data: &[u8]) -> Result<(), E>;
 }
 
-#[maybe_async(?Send)]
+#[maybe_async]
 impl<T> AsyncWriter<std::io::Error> for T
 where
-    T: std::io::Write + std::io::Seek,
+    T: std::io::Write + std::io::Seek + Send + Sync,
 {
     async fn atomic_write(&mut self, position: u64, data: &[u8]) -> Result<(), std::io::Error> {
         self.seek(std::io::SeekFrom::Start(position))?;
@@ -158,16 +158,16 @@ where
     }
 }
 
-#[maybe_async(?Send)]
-pub trait SectorReader<E> {
+#[maybe_async]
+pub trait SectorReader<E>: Send + Sync {
     async fn size(&mut self) -> Result<u64, E>;
     async fn read_sector(&mut self, sector: usize, sector_size: u32) -> Result<Vec<u8>, E>;
 }
 
-#[maybe_async(?Send)]
+#[maybe_async]
 impl<T> SectorReader<std::io::Error> for T
 where
-    T: std::io::Read + std::io::Seek,
+    T: std::io::Read + std::io::Seek + Send + Sync,
 {
     async fn size(&mut self) -> Result<u64, std::io::Error> {
         self.seek(std::io::SeekFrom::End(0))

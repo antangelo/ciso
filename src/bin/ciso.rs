@@ -4,7 +4,7 @@ struct SplitStdFs;
 
 type BufFile = std::io::BufWriter<std::fs::File>;
 
-#[maybe_async(?Send)]
+#[maybe_async]
 impl ciso::split::SplitFilesystem<std::io::Error, BufFile> for SplitStdFs {
     async fn create_file(&mut self, name: &std::ffi::OsStr) -> Result<BufFile, std::io::Error> {
         let file = std::fs::File::create(name)?;
@@ -16,7 +16,7 @@ impl ciso::split::SplitFilesystem<std::io::Error, BufFile> for SplitStdFs {
 }
 
 #[cfg_attr(not(feature = "sync"), tokio::main)]
-#[maybe_async(?Send)]
+#[maybe_async]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
     let file = std::path::PathBuf::from(&args[1]);
