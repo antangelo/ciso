@@ -110,6 +110,7 @@ pub struct SplitFileReader<E, R: crate::read::Read<E>> {
 }
 
 impl<E, R: crate::read::Read<E>> SplitFileReader<E, R> {
+    #[maybe_async]
     pub async fn new(readers: Vec<R>) -> Result<SplitFileReader<E, R>, E> {
         let mut position = 0;
         let mut files = BTreeMap::new();
