@@ -3,7 +3,7 @@ name = "ciso"
 description = "Library for CISO image compression and decompression"
 keywords = ["ciso", "compression"]
 readme = "README.md"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 license = "MIT AND BSD-3-Clause"
 
