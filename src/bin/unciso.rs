@@ -15,7 +15,7 @@ async fn main() {
     let file_base = file.with_extension("");
     let split = file_base.extension().is_some_and(|e| e == "1");
 
-    let input: Box<dyn ciso::read::Read<std::io::Error>> = if split {
+    let input: Box<dyn ciso::read::Read<ReadError = std::io::Error>> = if split {
         let mut files = Vec::new();
         for i in 1.. {
             let part = file_base.with_extension(format!("{}.{}", i, file_ext));

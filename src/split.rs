@@ -10,12 +10,12 @@ use crate::write::AsyncWriter;
 const FILE_SPLIT_POINT: u64 = 0xffbf6000;
 
 #[maybe_async]
-pub trait SplitFilesystem<E, H: AsyncWriter<E>>: Send + Sync {
+pub trait SplitFilesystem<E, H: AsyncWriter<WriteError = E>>: Send + Sync {
     async fn create_file(&mut self, name: &OsStr) -> Result<H, E>;
     async fn close(&mut self, file: H);
 }
 
-pub struct SplitOutput<E: Send + Sync, H: AsyncWriter<E>, S: SplitFilesystem<E, H>> {
+pub struct SplitOutput<E: Send + Sync, H: AsyncWriter<WriteError = E>, S: SplitFilesystem<E, H>> {
     fs: S,
     file_name: std::path::PathBuf,
     splits: std::collections::BTreeMap<u64, H>,
@@ -25,7 +25,7 @@ pub struct SplitOutput<E: Send + Sync, H: AsyncWriter<E>, S: SplitFilesystem<E, 
 
 impl<E, H, S> SplitOutput<E, H, S>
 where
-    H: AsyncWriter<E>,
+    H: AsyncWriter<WriteError = E>,
     S: SplitFilesystem<E, H>,
     E: Send + Sync,
 {
@@ -69,12 +69,14 @@ where
 }
 
 #[maybe_async]
-impl<E, H, S> AsyncWriter<E> for SplitOutput<E, H, S>
+impl<E, H, S> AsyncWriter for SplitOutput<E, H, S>
 where
-    H: AsyncWriter<E>,
+    H: AsyncWriter<WriteError = E>,
     S: SplitFilesystem<E, H>,
     E: Send + Sync,
 {
+    type WriteError = E;
+
     async fn atomic_write(&mut self, position: u64, data: &[u8]) -> Result<(), E> {
         let mut written = 0;
 
@@ -102,14 +104,14 @@ where
     }
 }
 
-pub struct SplitFileReader<E, R: crate::read::Read<E>> {
+pub struct SplitFileReader<E, R: crate::read::Read<ReadError = E>> {
     files: BTreeMap<u64, R>,
     last_position: u64,
 
     err_t: core::marker::PhantomData<E>,
 }
 
-impl<E, R: crate::read::Read<E>> SplitFileReader<E, R> {
+impl<E, R: crate::read::Read<ReadError = E>> SplitFileReader<E, R> {
     #[maybe_async]
     pub async fn new(readers: Vec<R>) -> Result<SplitFileReader<E, R>, E> {
         let mut position = 0;
@@ -130,7 +132,11 @@ impl<E, R: crate::read::Read<E>> SplitFileReader<E, R> {
 }
 
 #[maybe_async]
-impl<E: Send + Sync, R: crate::read::Read<E>> crate::read::Read<E> for SplitFileReader<E, R> {
+impl<E: Send + Sync, R: crate::read::Read<ReadError = E>> crate::read::Read
+    for SplitFileReader<E, R>
+{
+    type ReadError = E;
+
     async fn size(&mut self) -> Result<u64, E> {
         Ok(match self.files.last_entry() {
             Some(mut entry) => *entry.key() + entry.get_mut().size().await?,
@@ -159,19 +165,10 @@ impl<E: Send + Sync, R: crate::read::Read<E>> crate::read::Read<E> for SplitFile
             let handle_offset = pos - handle.0;
             let handle: &mut R = handle.1;
 
-            let (pos, to_read) = if handle_size > handle_offset {
-                let bytes_to_split = handle_size - handle_offset;
-                (
-                    pos,
-                    core::cmp::min(buf.len() - bytes_read, bytes_to_split as usize),
-                )
-            } else {
-                // If the handle is out of range, read over the handle size so it throws an
-                // error. The alternative is wrapping this in its own error enum, but that
-                // likely overlaps with the Reader's own error type.
-                (2 * handle_size, buf.len() - bytes_read)
-            };
+            assert!(handle_size > handle_offset);
+            let bytes_to_split = handle_size - handle_offset;
 
+            let to_read = core::cmp::min(buf.len() - bytes_read, bytes_to_split as usize);
             assert_ne!(to_read, 0);
 
             handle

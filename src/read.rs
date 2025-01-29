@@ -5,15 +5,19 @@ const LZ4_HEADER: &[u8] = &[0x4, 0x22, 0x4d, 0x18, 0x60, 0x40, 0x82];
 
 /// Asynchronous read interface
 #[maybe_async]
-pub trait Read<E>: Send + Sync {
-    async fn size(&mut self) -> Result<u64, E>;
+pub trait Read: Send + Sync {
+    type ReadError;
+
+    async fn size(&mut self) -> Result<u64, Self::ReadError>;
 
     /// Read bytes from a given position
-    async fn read(&mut self, pos: u64, buf: &mut [u8]) -> Result<(), E>;
+    async fn read(&mut self, pos: u64, buf: &mut [u8]) -> Result<(), Self::ReadError>;
 }
 
 #[maybe_async]
-impl<T: std::io::Read + std::io::Seek + Send + Sync> Read<std::io::Error> for T {
+impl<T: std::io::Read + std::io::Seek + Send + Sync> Read for T {
+    type ReadError = std::io::Error;
+
     async fn size(&mut self) -> Result<u64, std::io::Error> {
         self.seek(std::io::SeekFrom::End(0))
     }
@@ -26,7 +30,9 @@ impl<T: std::io::Read + std::io::Seek + Send + Sync> Read<std::io::Error> for T 
 }
 
 #[maybe_async]
-impl<E> Read<E> for Box<dyn Read<E>> {
+impl<E> Read for Box<dyn Read<ReadError = E>> {
+    type ReadError = E;
+
     async fn size(&mut self) -> Result<u64, E> {
         self.as_mut().size().await
     }
@@ -36,7 +42,7 @@ impl<E> Read<E> for Box<dyn Read<E>> {
     }
 }
 
-pub struct CSOReader<E, R: Read<E>> {
+pub struct CSOReader<E, R: Read<ReadError = E>> {
     read: R,
     header: layout::CSOHeader,
     index_table: index::IndexTable,
@@ -44,7 +50,7 @@ pub struct CSOReader<E, R: Read<E>> {
     err_t: core::marker::PhantomData<E>,
 }
 
-impl<E, R: Read<E>> CSOReader<E, R> {
+impl<E, R: Read<ReadError = E>> CSOReader<E, R> {
     #[maybe_async]
     pub async fn new(mut read: R) -> Result<CSOReader<E, R>, layout::Error<E>> {
         let mut header = [0; 24];
